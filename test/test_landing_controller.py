@@ -1,13 +1,20 @@
 """Tests for landing_controller.py - PID controller and landing phases."""
 import sys
 import os
+import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import time
-from drone_landing.landing_controller import PIDController, LandingPhase
+
+try:
+    from drone_landing.landing_controller import PIDController, LandingPhase
+    HAS_LANDING = True
+except ImportError:
+    HAS_LANDING = False
 
 
-class TestPIDController:
+@unittest.skipUnless(HAS_LANDING, "rclpy not available")
+class TestPIDController(unittest.TestCase):
     def test_proportional(self):
         pid = PIDController(kp=1.0, ki=0.0, kd=0.0, limit=10.0)
         pid.prev_time = time.time() - 0.02
@@ -65,7 +72,8 @@ class TestPIDController:
         assert isinstance(out, float)
 
 
-class TestLandingPhase:
+@unittest.skipUnless(HAS_LANDING, "rclpy not available")
+class TestLandingPhase(unittest.TestCase):
     def test_phase_constants(self):
         assert LandingPhase.COARSE == "coarse"
         assert LandingPhase.FINE == "fine"
@@ -76,5 +84,4 @@ class TestLandingPhase:
 
 
 if __name__ == '__main__':
-    import pytest
-    pytest.main([__file__, '-v'])
+    unittest.main()
