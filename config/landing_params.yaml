@@ -1,0 +1,38 @@
+# ==========================================
+# Precision Landing Parameters
+# ==========================================
+
+landing_detector:
+  ros__parameters:
+    video_source: 0
+    aruco_dict: "4x4_50"
+    marker_size: 0.2          # meters
+    fx: 500.0                 # camera focal length x
+    fy: 500.0                 # camera focal length y
+    cx: 320.0                 # camera center x
+    cy: 240.0                 # camera center y
+    publish_annotated: true
+
+landing_controller:
+  ros__parameters:
+    test_mode: true
+    coarse_altitude: 5.0      # GPS nav altitude
+    descent_rate: 0.3         # m/s
+    flare_altitude: 0.5       # start flare (m)
+    landed_altitude: 0.1      # landed detection (m)
+    max_horizontal_error: 2.0 # abort threshold (m)
+    target_lost_timeout: 5.0  # visual lost timeout (s)
+    kp_xy: 0.4
+    ki_xy: 0.05
+    kd_xy: 0.2
+    kp_z: 0.6
+    ki_z: 0.1
+    kd_z: 0.3
+
+mission_planner:
+  ros__parameters:
+    test_mode: true
+    cruise_altitude: 5.0
+    target_lat: 0.0
+    target_lon: 0.0
+    search_timeout: 30.0
