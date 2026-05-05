@@ -52,12 +52,17 @@ class MissionPlannerNode(Node):
         self.landing_phase = "coarse"
         self.fcu_connected = False
         self.armed = False
+        self.current_altitude = 0.0
 
         # 订阅
         self.create_subscription(String, "/landing/status",
                                  self._landing_cb, 10)
         self.create_subscription(String, "/mission/start",
                                  self._start_cb, 10)
+        if not self.test_mode:
+            from geometry_msgs.msg import PoseStamped
+            self.create_subscription(PoseStamped, "/mavros/local_position/pose",
+                                     self._pos_cb, 10)
 
         # 发布
         self.status_pub = self.create_publisher(
@@ -84,6 +89,9 @@ class MissionPlannerNode(Node):
         except json.JSONDecodeError:
             pass
 
+    def _pos_cb(self, msg):
+        self.current_altitude = msg.pose.position.z
+
     def _landing_cb(self, msg):
         try:
             data = json.loads(msg.data)
@@ -105,8 +113,10 @@ class MissionPlannerNode(Node):
             else:
                 self._set_mode("GUIDED")
                 self._arm(True)
-                self.phase = MissionPhase.NAVIGATING
-                self.phase_start = now
+                if self.current_altitude >= self.cruise_alt * 0.9:
+                    self.phase = MissionPhase.NAVIGATING
+                    self.phase_start = now
+                    self.get_logger().info("Reached cruise altitude -> NAVIGATING")
 
         elif self.phase == MissionPhase.NAVIGATING:
             if self.test_mode:

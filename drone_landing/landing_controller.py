@@ -128,6 +128,8 @@ class LandingControllerNode(Node):
         self.target_pixel_err = (0.0, 0.0)
         self.last_detect_time = 0.0
         self.phase_start_time = 0.0
+        self.abort_count = 0
+        self.max_abort_retries = 3
 
         # 订阅
         qos = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
@@ -238,11 +240,16 @@ class LandingControllerNode(Node):
                 # 持续水平修正
                 vx = self.pid_x.update(-self.target_tx) * 0.5
                 vy = self.pid_y.update(-self.target_ty) * 0.5
-                # 恒速下降
-                vz = -self.descent_rate
+                # 自适应下降速率: 高处快, 低处慢
+                alt = max(0.0, self.target_tz) if self.test_mode else max(0.0, self.local_pos[2])
+                if alt > 2.0:
+                    vz = -self.descent_rate * 1.5  # 高处快降
+                elif alt > 0.5:
+                    vz = -self.descent_rate          # 中等高度标准速率
+                else:
+                    vz = -self.descent_rate * 0.5    # 低处慢降
 
                 # 检查是否到 flare 高度
-                alt = self.target_tz if self.test_mode else self.local_pos[2]
                 if alt < self.flare_alt:
                     self.phase = LandingPhase.FLARE
                     self.phase_start_time = now
@@ -265,7 +272,7 @@ class LandingControllerNode(Node):
                 vy = self.pid_y.update(-self.target_ty) * 0.3
                 vz = -self.descent_rate * 0.3  # 更慢
 
-                alt = self.target_tz if self.test_mode else self.local_pos[2]
+                alt = max(0.0, self.target_tz) if self.test_mode else max(0.0, self.local_pos[2])
                 if alt < self.land_alt:
                     self.phase = LandingPhase.LANDED
                     self.get_logger().info("LANDED!")
@@ -281,11 +288,13 @@ class LandingControllerNode(Node):
                 self._set_mode("LAND")
 
         elif self.phase == LandingPhase.ABORT:
-            # 中止: 悬停并等待
+            # 中止: 悬停并等待, 有限重试
             vx, vy, vz = 0, 0, 0
-            if self.target_detected:
+            if self.target_detected and self.abort_count < self.max_abort_retries:
+                self.abort_count += 1
                 self.phase = LandingPhase.FINE
                 self.phase_start_time = now
+                self.get_logger().info(f"Retry landing ({self.abort_count}/{self.max_abort_retries})")
 
         # 发布速度命令
         if not self.test_mode and self.phase not in (
