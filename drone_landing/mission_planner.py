@@ -53,6 +53,7 @@ class MissionPlannerNode(Node):
         self.fcu_connected = False
         self.armed = False
         self.current_altitude = 0.0
+        self._takeoff_commands_sent = False
 
         # 订阅
         self.create_subscription(String, "/landing/status",
@@ -111,11 +112,14 @@ class MissionPlannerNode(Node):
                 self.phase = MissionPhase.NAVIGATING
                 self.phase_start = now
             else:
-                self._set_mode("GUIDED")
-                self._arm(True)
+                if not self._takeoff_commands_sent:
+                    self._set_mode("GUIDED")
+                    self._arm(True)
+                    self._takeoff_commands_sent = True
                 if self.current_altitude >= self.cruise_alt * 0.9:
                     self.phase = MissionPhase.NAVIGATING
                     self.phase_start = now
+                    self._takeoff_commands_sent = False
                     self.get_logger().info("Reached cruise altitude -> NAVIGATING")
 
         elif self.phase == MissionPhase.NAVIGATING:

@@ -295,6 +295,10 @@ class LandingControllerNode(Node):
                 self.phase = LandingPhase.FINE
                 self.phase_start_time = now
                 self.get_logger().info(f"Retry landing ({self.abort_count}/{self.max_abort_retries})")
+            elif self.abort_count >= self.max_abort_retries:
+                self.get_logger().error("ABORT retries exhausted, switching to LAND mode")
+                if not self.test_mode:
+                    self._set_mode("LAND")
 
         # 发布速度命令
         if not self.test_mode and self.phase not in (
